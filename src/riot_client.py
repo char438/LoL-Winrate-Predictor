@@ -27,6 +27,10 @@ def get_match_by_match_id(region, matchId):
     url = f"https://{region}.api.riotgames.com/lol/match/v5/matches/{matchId}"
     return _riot_get(url)
 
+def get_player_info_by_puuid(region, puuid):
+    url = f"https://{region}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
+    return _riot_get(url)
+
 
 
 if __name__ == "__main__":
@@ -34,4 +38,5 @@ if __name__ == "__main__":
     matchlist = get_matchlist_by_puuid("sea", puuid)
     match_data = get_match_by_match_id("sea", matchlist[0])
 
-    print(match_data)
+    
+

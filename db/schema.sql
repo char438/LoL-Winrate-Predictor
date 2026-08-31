@@ -35,3 +35,7 @@ CREATE TABLE bans (
     pick_turn    int,
     primary key (match_id, champion_id)
 );
+
+CREATE TABLE processed_matches (
+    match_id text primary key
+);

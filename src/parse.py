@@ -56,7 +56,16 @@ def parse_match_json(match_json):
 
     return match_row, participant_rows, ban_rows
 
-
+def parse_player_league(league_json, puuid):
+    solo = next((e for e in league_json if e["queueType"] == "RANKED_SOLO_5x5"), None)
+    if solo is None:                      # unranked → empty list, no solo entry
+        return {"puuid": puuid, "tier": None, "division": None, "lp": None}
+    return {
+        "puuid": puuid,
+        "tier": solo["tier"],             # "GOLD"
+        "division": solo["rank"],         # "II"  (league-v4 calls division "rank")
+        "lp": solo["leaguePoints"],
+    }
 
 if __name__ == "__main__":
     from riot_client import get_puuid_by_riot_id, get_matchlist_by_puuid, get_match_by_match_id
