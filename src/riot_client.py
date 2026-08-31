@@ -6,22 +6,32 @@ load_dotenv()
 riot_key = os.getenv("RIOT_API_KEY")
 
 
-def get_uuid_by_riot(gameName, tagLine, region, api_key):
-    url = f"https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}"
-    headers = {
-        "X-Riot-Token": api_key
-    }
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code == 200:
-        data = response.json()
-        return data['puuid']  # This is the UUID of the summoner
-    else:
-        print(f"Error: {response.status_code} - {response.text}")
-        return None
+def _riot_get(url):
+    headers = {"X-Riot-Token": riot_key}
+    response = requests.get(url, headers=headers, timeout=10)
+    response.raise_for_status() 
+    return response.json()
+
+
+def get_puuid_by_riot_id(game_name, tag_line, region):
+    url = f"https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{game_name}/{tag_line}"
+    return _riot_get(url)["puuid"] 
+
+
+def get_matchlist_by_puuid(region, puuid):
+    url = f"https://{region}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids"
+    return _riot_get(url)
+
+
+def get_match_by_match_id(region, matchId):
+    url = f"https://{region}.api.riotgames.com/lol/match/v5/matches/{matchId}"
+    return _riot_get(url)
 
 
 
+if __name__ == "__main__":
+    puuid = get_puuid_by_riot_id("tenpaireformed", "oc", "asia")
+    matchlist = get_matchlist_by_puuid("sea", puuid)
+    match_data = get_match_by_match_id("sea", matchlist[0])
 
-uuid = get_uuid_by_riot("tenpaireformed", "oc", "asia", riot_key)
-
+    print(match_data)
