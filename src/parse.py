@@ -20,7 +20,9 @@ def parse_match_json(match_json):
         "patch": _patch(info["gameVersion"]),
         "start_time": datetime.fromtimestamp(info["gameStartTimestamp"] / 1000, tz=timezone.utc),
         "winner_side": winner_side,
+        "game_duration": info["gameDuration"],
     }
+
 
     # --- participant rows (ten dicts) ---
     participant_rows = []

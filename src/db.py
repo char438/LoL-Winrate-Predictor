@@ -1,22 +1,34 @@
 import os, psycopg
+from psycopg.types.json import Json
+
 
 def get_connection():
     return psycopg.connect(os.getenv("DATABASE_URL"))
 
-def insert_data_pipeline(conn, match_row, participant_rows, ban_rows):
+def insert_data_pipeline(conn, match_json, match_row, participant_rows, ban_rows):
+    insert_raw_match(conn, match_row["match_id"], match_json)
     insert_match(conn, match_row)
     insert_players(conn, participant_rows)
     insert_participants(conn, participant_rows)
     insert_bans(conn, ban_rows)
     mark_processed(conn, match_row["match_id"])
 
+def insert_raw_match(conn, match_id, match_json):
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO raw_matches (match_id, raw_json) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            (match_id, Json(match_json)),
+        )
 
 def insert_match(conn, match_row):
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO matches (match_id, patch, start_time, winner_side) VALUES(%s, %s, %s, %s) ON CONFLICT DO NOTHING", 
-            (match_row["match_id"], match_row["patch"],  match_row["start_time"],  match_row["winner_side"])
-                    )
+            """INSERT INTO matches (match_id, patch, start_time, winner_side, game_duration)
+               VALUES (%s, %s, %s, %s, %s)
+               ON CONFLICT DO NOTHING""",
+            (match_row["match_id"], match_row["patch"], match_row["start_time"],
+             match_row["winner_side"], match_row["game_duration"]),
+        )
 
 def insert_players(conn, participant_rows):
     puuids = {p["puuid"] for p in participant_rows} 

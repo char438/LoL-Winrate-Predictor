@@ -1,16 +1,17 @@
 CREATE TABLE players (
-    puuid text primary key,
-    tier text,
-    division text,
-    lp int,
+    puuid          text primary key,
+    tier           text,
+    division       text,
+    lp             int,
     summoner_level int
 );
 
 CREATE TABLE matches (
-    match_id     text primary key,
-    patch        text,
-    start_time   timestamptz,
-    winner_side  text
+    match_id       text primary key,
+    patch          text,
+    start_time     timestamptz,
+    winner_side    text,
+    game_duration  int
 );
 
 CREATE TABLE participants (
@@ -38,4 +39,9 @@ CREATE TABLE bans (
 
 CREATE TABLE processed_matches (
     match_id text primary key
+);
+
+CREATE TABLE raw_matches (
+    match_id text primary key,
+    raw_json jsonb
 );

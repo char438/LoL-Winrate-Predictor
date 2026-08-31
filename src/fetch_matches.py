@@ -37,13 +37,13 @@ def crawl(seed_puuid, region, target_matches):
                                 seen_players.add(puuid)
 
                         match_row, participant_rows, ban_rows = parse_match_json(current_match_json)
-                        insert_data_pipeline(conn, match_row, participant_rows, ban_rows)
+                        insert_data_pipeline(conn, current_match_json, match_row, participant_rows, ban_rows)
                         conn.commit()
                         processed_matches_cache.add(matchid)   # #6
                         stored += 1
                         print(f"stored {stored}: {matchid}")
 
-                    time.sleep(1.2)   # rate limit, after each match fetch
+                    time.sleep(1.5)   # rate limit, after each match fetch
 
                 except Exception as e:
                     conn.rollback()
@@ -56,4 +56,4 @@ if __name__ == "__main__":
     load_dotenv()
 
     seed = get_puuid_by_riot_id("tenpaireformed", "oc", "asia")
-    crawl(seed, "sea", target_matches=5) 
+    crawl(seed, "sea", target_matches=5000) 
