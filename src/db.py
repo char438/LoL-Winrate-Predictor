@@ -75,7 +75,7 @@ def update_player_rank(conn, player_row):
              player_row["lp"], player_row["puuid"]),
         )
 
-def matchid_already_processed(conn, match_id):
+def match_id_already_processed(conn, match_id):
     with conn.cursor() as cur:
         cur.execute("SELECT 1 FROM processed_matches WHERE match_id = %s", (match_id,))
         return cur.fetchone() is not None
@@ -86,4 +86,74 @@ def mark_processed(conn, match_id):
             "INSERT INTO processed_matches (match_id) VALUES (%s) ON CONFLICT DO NOTHING",
             (match_id,),
         )
+
+
+#Functions for role_predictor
+
+def role_predictor_bundle(conn, match_id):
+
+    team_data, champion_ids = parse_match_id_to_team_data(conn, match_id)
+    all_champion_ids = champion_ids["blue"] + champion_ids["red"]
+    champion_priors = parse_priors(conn, all_champion_ids)
+    priors_lookup = priors_to_lookup(champion_priors)     
+
+    return team_data, priors_lookup
+
+def parse_priors(conn, team_champion_ids):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT champion_id, position, champion_role_pickrate
+            FROM role_priors
+            WHERE champion_id = ANY (%s)
+            ORDER BY champion_id, position;
+            """,
+            (team_champion_ids,),
+        )
+        return cur.fetchall()
+
+def priors_to_lookup(champion_priors):
+    priors_lookup = {}
+
+    for prior in champion_priors:
+        champion_id, role, probability = prior
+
+        if champion_id not in priors_lookup:
+            priors_lookup[champion_id] = {} 
+            
+        priors_lookup[champion_id][role] = probability  
+
+    return priors_lookup
+
+
+def parse_match_id_to_team_data(conn, match_id):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT team_colour, puuid, champion_name, champion_id, position
+            FROM participants
+            WHERE match_id = %s
+            ORDER BY team_colour, position;
+            """,
+            (match_id,),
+        )
+        rows = cur.fetchall()
+
+    teams = {"blue": [], "red": []}
+    champion_ids = {"blue": [], "red": []}
+
+    for team_colour, puuid, champion_name, champion_id, position in rows:
+        teams[team_colour].append(
+            {
+                "puuid": puuid,
+                "champion_name": champion_name,
+                "champion_id": champion_id,
+                "position": position,
+            }
+        )
+        champion_ids[team_colour].append(champion_id)
+
+
+    return teams, champion_ids
+
 
