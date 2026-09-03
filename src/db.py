@@ -91,13 +91,28 @@ def mark_processed(conn, match_id):
 #Functions for role_predictor
 
 def role_predictor_bundle(conn, match_id):
-
     team_data, champion_ids = parse_match_id_to_team_data(conn, match_id)
+    priors_lookup = get_champion_priors_lookup(conn, champion_ids)
+    spell_priors_lookup = get_spell_priors_lookup(conn, team_data)
+
+    return team_data, priors_lookup, spell_priors_lookup
+
+
+def get_champion_priors_lookup(conn, champion_ids):
     all_champion_ids = champion_ids["blue"] + champion_ids["red"]
     champion_priors = parse_priors(conn, all_champion_ids)
-    priors_lookup = priors_to_lookup(champion_priors)     
+    return priors_to_lookup(champion_priors)
 
-    return team_data, priors_lookup
+
+def get_spell_priors_lookup(conn, team_data):
+    all_spell_ids = []
+    for team_colour in ("blue", "red"):
+        for player in team_data[team_colour]:
+            for spell_id in player["spell_ids"]:
+                all_spell_ids.append(spell_id)
+
+    spell_priors = parse_spell_priors(conn, all_spell_ids)
+    return spell_priors_to_lookup(spell_priors)
 
 def parse_priors(conn, team_champion_ids):
     with conn.cursor() as cur:
@@ -121,7 +136,7 @@ def priors_to_lookup(champion_priors):
         if champion_id not in priors_lookup:
             priors_lookup[champion_id] = {} 
             
-        priors_lookup[champion_id][role] = probability  
+        priors_lookup[champion_id][role] = float(probability)
 
     return priors_lookup
 
@@ -130,7 +145,8 @@ def parse_match_id_to_team_data(conn, match_id):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT team_colour, puuid, champion_name, champion_id, position
+            SELECT team_colour, puuid, champion_name, champion_id, position,
+                   summoner1_id, summoner2_id
             FROM participants
             WHERE match_id = %s
             ORDER BY team_colour, position;
@@ -142,18 +158,45 @@ def parse_match_id_to_team_data(conn, match_id):
     teams = {"blue": [], "red": []}
     champion_ids = {"blue": [], "red": []}
 
-    for team_colour, puuid, champion_name, champion_id, position in rows:
+    for (team_colour, puuid, champion_name, champion_id, position,
+         summoner1_id, summoner2_id) in rows:
         teams[team_colour].append(
             {
                 "puuid": puuid,
                 "champion_name": champion_name,
                 "champion_id": champion_id,
                 "position": position,
+                "spell_ids": [summoner1_id, summoner2_id],
             }
         )
         champion_ids[team_colour].append(champion_id)
 
-
     return teams, champion_ids
 
 
+def parse_spell_priors(conn, team_spell_ids):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT spell_id, position, spell_role_pickrate
+            FROM spell_role_priors
+            WHERE spell_id = ANY (%s)
+            ORDER BY spell_id, position;
+            """,
+            (team_spell_ids,),
+        )
+        return cur.fetchall()
+
+
+def spell_priors_to_lookup(spell_priors):
+    spell_priors_lookup = {}
+
+    for prior in spell_priors:
+        spell_id, role, probability = prior
+
+        if spell_id not in spell_priors_lookup:
+            spell_priors_lookup[spell_id] = {}
+
+        spell_priors_lookup[spell_id][role] = float(probability)
+
+    return spell_priors_lookup
